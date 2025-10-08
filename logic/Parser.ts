@@ -1,5 +1,5 @@
 import { XMLParser } from "npm:fast-xml-parser";
-import { TrackPoint } from "../util/types.ts";
+import { SessionMetadata, TrackPoint } from "../util/types.ts";
 import LocationOpenStreetmap from "./LocationOpenStreetmap.ts";
 import Location from "./Location.ts";
 
@@ -12,7 +12,7 @@ export class Parser {
     const data = parser.parse(xml); // parse XML → JS object
     return data;
   }
-  static getPointsFromRawJson(data: any): any {
+  static getPointsFromRawJson(data: any): TrackPoint[] {
     const points = data.gpx.trk.trkseg.trkpt;
     const convertedPoints: TrackPoint[] = points.map((raw: any) => {
       return {
@@ -27,13 +27,13 @@ export class Parser {
     return convertedPoints;
   }
 
-  static async getMetadata(rawJson: any): Promise<any> {
+  static async getMetadata(rawJson: any): Promise<SessionMetadata> {
     const location: Location = new LocationOpenStreetmap();
     const loc: any = await location.getLocation(
       rawJson.gpx.trk.trkseg.trkpt[0]
     );
 
-    const metadata = {
+    const metadata: SessionMetadata = {
       name: rawJson.gpx.trk.name,
       type: rawJson.gpx.trk.type,
       time: rawJson.gpx.metadata.time,

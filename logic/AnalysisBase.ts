@@ -1,17 +1,35 @@
 import { TrackPoint, TrackStatistics } from "../util/types.ts";
 import { Analysis } from "./Analysis.ts";
 
+export interface AnalysisConfig {
+  /** Minimum speed to be considered "flying" (default: 6 km/h) */
+  flyingSpeedThresholdKmh: number;
+  /** Minimum speed to maintain during a flying jibe (default: 6 km/h) */
+  flyingJibeSpeedThresholdKmh: number;
+  /** Minimum angle change to be considered a jibe (downwind turn, default: 140°) */
+  jibeAngleThreshold?: number;
+  /** Minimum angle change to be considered a tack (upwind turn, default: 80°) */
+  tackAngleThreshold?: number;
+  /** Maximum time window to detect maneuvers (default: 15 seconds) */
+  maneuverTimeWindowSeconds?: number;
+  /** Minimum segment duration to count as valid flying (default: 5 seconds) */
+  minFlyingSegmentSeconds?: number;
+}
 export class AnalysisBase implements Analysis {
+  constructor(private config: AnalysisConfig) {}
+
+  getConfig() {
+    return this.config;
+  }
   getStatistics(points: TrackPoint[]): TrackStatistics {
-    return getAnalysisData(points);
+    return getAnalysisData(points, this.config);
   }
 }
 
-const FLY_MINIMUM_SPEED = 4; // km/h
-const SPEED_DROP_THRESHOLD = 2; // m/s (7.2 km/h) — speed below which we end the segment
-const MIN_SEGMENT_DURATION = 22; // seconds
-
-const getAnalysisData = (points: TrackPoint[]): TrackStatistics => {
+const getAnalysisData = (
+  points: TrackPoint[],
+  config: AnalysisConfig
+): TrackStatistics => {
   if (!points || points.length < 2) {
     throw Error();
   }
@@ -43,14 +61,18 @@ const getAnalysisData = (points: TrackPoint[]): TrackStatistics => {
     const prevSpeedKmh = (prevPoint.speed || 0) * 3.6; // Convert m/s to km/h
     const currentSpeedKmh = (currentPoint.speed || 0) * 3.6;
 
-    if (prevSpeedKmh > FLY_MINIMUM_SPEED || currentSpeedKmh > 8) {
+    if (
+      prevSpeedKmh > config.flyingJibeSpeedThresholdKmh ||
+      currentSpeedKmh > 8
+    ) {
       const segmentTime =
         new Date(currentPoint.time).getTime() -
         new Date(prevPoint.time).getTime();
       // If both speeds are above 10, count full segment time
       // If only one is above, count half the segment time (approximation)
       const timeToAdd =
-        prevSpeedKmh > FLY_MINIMUM_SPEED && currentSpeedKmh > FLY_MINIMUM_SPEED
+        prevSpeedKmh > config.flyingSpeedThresholdKmh &&
+        currentSpeedKmh > config.flyingJibeSpeedThresholdKmh
           ? segmentTime
           : segmentTime / 2;
 
@@ -77,7 +99,7 @@ const getAnalysisData = (points: TrackPoint[]): TrackStatistics => {
   for (let i = 0; i < points.length; i++) {
     const speedKmh = (points[i].speed || 0) * 3.6;
 
-    if (speedKmh > FLY_MINIMUM_SPEED) {
+    if (speedKmh > config.flyingSpeedThresholdKmh) {
       // Start or continue a sequence
       if (sequenceStartIndex === -1) {
         sequenceStartIndex = i;
