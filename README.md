@@ -1,3 +1,4 @@
 ```
-deno task start
+deno task dev
 ```
+ deployctl deploy

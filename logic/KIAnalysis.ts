@@ -1,4 +1,8 @@
-import { TrackPoint, TrackStatistics } from "../util/types.ts";
+import {
+  RawTrackStatistics,
+  TrackPoint,
+  TrackStatistics,
+} from "../util/types.ts";
 import { Analysis } from "./Analysis.ts";
 
 export interface KIAnalysisConfig {
@@ -14,6 +18,8 @@ export interface KIAnalysisConfig {
   maneuverTimeWindowSeconds: number;
   /** Minimum segment duration to count as valid flying (default: 5 seconds) */
   minFlyingSegmentSeconds: number;
+  /** Minimum duration a speed must be sustained to count as max speed (default: 5 seconds) */
+  minMaxSpeedDurationSeconds: number;
 }
 
 export class KIAnalysis implements Analysis {
@@ -21,21 +27,23 @@ export class KIAnalysis implements Analysis {
 
   constructor(config?: Partial<KIAnalysisConfig>) {
     this.config = {
-      flyingSpeedThresholdKmh: 6,
-      flyingJibeSpeedThresholdKmh: 6,
+      flyingSpeedThresholdKmh: 8,
+      flyingJibeSpeedThresholdKmh: 8,
       jibeAngleThreshold: 140,
       tackAngleThreshold: 80,
       maneuverTimeWindowSeconds: 15,
       minFlyingSegmentSeconds: 5,
+      minMaxSpeedDurationSeconds: 3,
       ...config,
     };
   }
 
   getStatistics(points: TrackPoint[]): TrackStatistics {
-    return this.getKIAnalysisData(points);
+    const rawStats = this.getKIAnalysisData(points);
+    return this.formatStatistics(rawStats);
   }
 
-  private getKIAnalysisData(points: TrackPoint[]): TrackStatistics {
+  private getKIAnalysisData(points: TrackPoint[]): RawTrackStatistics {
     if (!points || points.length < 2) {
       throw new Error("Insufficient data points for analysis");
     }
@@ -69,6 +77,58 @@ export class KIAnalysis implements Analysis {
     };
   }
 
+  private formatStatistics(rawStats: RawTrackStatistics): TrackStatistics {
+    const flyingPercentage = (
+      (rawStats.timeAbove10kmh / rawStats.totalTime) *
+      100
+    ).toFixed(1);
+    const flyingJibePercentage =
+      rawStats.jibeCount > 0
+        ? ((rawStats.flyingJibeCount / rawStats.jibeCount) * 100).toFixed(1)
+        : "0";
+
+    return {
+      general: {
+        totalTime: this.formatDuration(rawStats.totalTime),
+      },
+      speed: {
+        avg: `${(rawStats.avgSpeed * 3.6).toFixed(1)} km/h`,
+        max: `${(rawStats.maxSpeed * 3.6).toFixed(1)} km/h`,
+      },
+      flying: {
+        time: this.formatDuration(rawStats.timeAbove10kmh),
+        longestSequence: this.formatDuration(
+          rawStats.longestSequenceAbove10kmh
+        ),
+        percentage: `${flyingPercentage}%`,
+      },
+      maneuvers: {
+        jibes: rawStats.jibeCount,
+        tacks: rawStats.tackCount,
+        flyingJibes: rawStats.flyingJibeCount,
+        flyingJibePercentage: `${flyingJibePercentage}%`,
+      },
+      distance: {
+        total: `${(rawStats.totalDistance / 1000).toFixed(2)} km`,
+        maxFromStart: `${(rawStats.maxDistanceFromStart / 1000).toFixed(2)} km`,
+      },
+    };
+  }
+
+  private formatDuration(seconds: number): string {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${remainingSeconds
+        .toString()
+        .padStart(2, "0")}`;
+    } else {
+      return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+    }
+  }
+
   private calculateTotalDistance(points: TrackPoint[]): number {
     let totalDistance = 0;
     for (let i = 1; i < points.length; i++) {
@@ -85,7 +145,69 @@ export class KIAnalysis implements Analysis {
 
   private getMaxSpeed(points: TrackPoint[]): number {
     const filteredPoints = this.filterSpeedOutliers(points);
-    return Math.max(...filteredPoints.map((p) => p.speed || 0));
+    return this.getMaxSustainedSpeed(filteredPoints);
+  }
+
+  /**
+   * Calculate the maximum speed that is sustained for at least the configured duration
+   */
+  private getMaxSustainedSpeed(points: TrackPoint[]): number {
+    if (points.length < 2) return 0;
+
+    let maxSustainedSpeed = 0;
+    const minDuration = this.config.minMaxSpeedDurationSeconds;
+
+    for (let i = 0; i < points.length; i++) {
+      const currentSpeed = points[i].speed || 0;
+
+      // Skip if speed is 0 or very low
+      if (currentSpeed <= 0.1) continue; // 0.1 m/s = 0.36 km/h threshold
+
+      // Find how long this speed (or higher) is sustained
+      const sustainedDuration = this.calculateSustainedSpeedDuration(
+        points,
+        i,
+        currentSpeed
+      );
+
+      // Only consider this speed if it's sustained for the minimum duration
+      if (
+        sustainedDuration >= minDuration &&
+        currentSpeed > maxSustainedSpeed
+      ) {
+        maxSustainedSpeed = currentSpeed;
+      }
+    }
+
+    return maxSustainedSpeed;
+  }
+
+  /**
+   * Calculate how long a given speed (or higher) is sustained starting from a specific point
+   */
+  private calculateSustainedSpeedDuration(
+    points: TrackPoint[],
+    startIndex: number,
+    targetSpeed: number
+  ): number {
+    if (startIndex >= points.length - 1) return 0;
+
+    const startTime = new Date(points[startIndex].time).getTime();
+    let endTime = startTime;
+
+    // Find consecutive points where speed >= targetSpeed
+    for (let i = startIndex; i < points.length; i++) {
+      const currentSpeed = points[i].speed || 0;
+
+      if (currentSpeed >= targetSpeed) {
+        endTime = new Date(points[i].time).getTime();
+      } else {
+        // Speed dropped below target, stop here
+        break;
+      }
+    }
+
+    return (endTime - startTime) / 1000; // Return duration in seconds
   }
 
   private calculateAverageSpeed(points: TrackPoint[]): number {
@@ -378,7 +500,7 @@ export class KIAnalysis implements Analysis {
   /**
    * Get current configuration
    */
-  public getConfig(): KIAnalysisConfig {
+  public getConfig(): Record<string, unknown> {
     return { ...this.config };
   }
 }

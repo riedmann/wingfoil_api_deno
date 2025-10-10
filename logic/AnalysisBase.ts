@@ -1,4 +1,8 @@
-import { TrackPoint, TrackStatistics } from "../util/types.ts";
+import {
+  TrackPoint,
+  RawTrackStatistics,
+  TrackStatistics,
+} from "../util/types.ts";
 import { Analysis } from "./Analysis.ts";
 
 export interface AnalysisConfig {
@@ -16,20 +20,80 @@ export interface AnalysisConfig {
   minFlyingSegmentSeconds?: number;
 }
 export class AnalysisBase implements Analysis {
-  constructor(private config: AnalysisConfig) {}
+  private config = {
+    flyingJibeSpeedThresholdKmh: 8,
+    flyingSpeedThresholdKmh: 8,
+    jibeAngleThreshold: 70,
+    maneuverTimeWindowSeconds: 15,
+    minFlyingSegmentSeconds: 2,
+    tackAngleThreshold: 70,
+  };
 
   getConfig() {
     return this.config;
   }
   getStatistics(points: TrackPoint[]): TrackStatistics {
-    return getAnalysisData(points, this.config);
+    const rawStats = getAnalysisData(points, this.config);
+    return this.formatStatistics(rawStats);
+  }
+
+  private formatStatistics(rawStats: RawTrackStatistics): TrackStatistics {
+    const flyingPercentage = (
+      (rawStats.timeAbove10kmh / rawStats.totalTime) *
+      100
+    ).toFixed(1);
+    const flyingJibePercentage =
+      rawStats.jibeCount > 0
+        ? ((rawStats.flyingJibeCount / rawStats.jibeCount) * 100).toFixed(1)
+        : "0";
+
+    return {
+      general: {
+        totalTime: this.formatDuration(rawStats.totalTime),
+      },
+      speed: {
+        avg: `${(rawStats.avgSpeed * 3.6).toFixed(1)} km/h`,
+        max: `${(rawStats.maxSpeed * 3.6).toFixed(1)} km/h`,
+      },
+      flying: {
+        time: this.formatDuration(rawStats.timeAbove10kmh),
+        longestSequence: this.formatDuration(
+          rawStats.longestSequenceAbove10kmh
+        ),
+        percentage: `${flyingPercentage}%`,
+      },
+      maneuvers: {
+        jibes: rawStats.jibeCount,
+        tacks: rawStats.tackCount,
+        flyingJibes: rawStats.flyingJibeCount,
+        flyingJibePercentage: `${flyingJibePercentage}%`,
+      },
+      distance: {
+        total: `${(rawStats.totalDistance / 1000).toFixed(2)} km`,
+        maxFromStart: `${(rawStats.maxDistanceFromStart / 1000).toFixed(2)} km`,
+      },
+    };
+  }
+
+  private formatDuration(seconds: number): string {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${remainingSeconds
+        .toString()
+        .padStart(2, "0")}`;
+    } else {
+      return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+    }
   }
 }
 
 const getAnalysisData = (
   points: TrackPoint[],
   config: AnalysisConfig
-): TrackStatistics => {
+): RawTrackStatistics => {
   if (!points || points.length < 2) {
     throw Error();
   }
@@ -200,7 +264,7 @@ const getAnalysisData = (
       i = maneuverEndIndex;
     }
   }
-  let stats: TrackStatistics = {
+  const stats: RawTrackStatistics = {
     totalDistance,
     totalTime: totalTimeSeconds,
     avgSpeed: avgSpeed,
