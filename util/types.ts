@@ -47,6 +47,8 @@ export type Session = {
 export interface RawTrackStatistics {
   totalDistance: number; // in meters
   totalTime: number; // in seconds
+  startTime: string; // ISO string
+  endTime: string; // ISO string
   avgSpeed: number; // in m/s
   maxSpeed: number; // in m/s
   timeAbove10kmh: number; // in seconds
@@ -59,7 +61,10 @@ export interface RawTrackStatistics {
 
 export interface TrackStatistics {
   general: {
+    date: Date;
     totalTime: string;
+    startTime: string;
+    endTime: string;
   };
   speed: {
     avg: string; // e.g. "9.8 km/h"

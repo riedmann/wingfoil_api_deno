@@ -49,7 +49,10 @@ export class AnalysisBase implements Analysis {
 
     return {
       general: {
+        date: new Date(rawStats.startTime),
         totalTime: this.formatDuration(rawStats.totalTime),
+        startTime: this.formatDateTime(rawStats.startTime),
+        endTime: this.formatDateTime(rawStats.endTime),
       },
       speed: {
         avg: `${(rawStats.avgSpeed * 3.6).toFixed(1)} km/h`,
@@ -87,6 +90,19 @@ export class AnalysisBase implements Analysis {
     } else {
       return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
     }
+  }
+
+  private formatDateTime(isoString: string): string {
+    const date = new Date(isoString);
+    return date.toLocaleString("en-US", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
   }
 }
 
@@ -267,6 +283,8 @@ const getAnalysisData = (
   const stats: RawTrackStatistics = {
     totalDistance,
     totalTime: totalTimeSeconds,
+    startTime: points[0].time,
+    endTime: points[points.length - 1].time,
     avgSpeed: avgSpeed,
     maxSpeed: maxSpeed,
     timeAbove10kmh: timeAbove10kmh / 1000, // Convert to seconds

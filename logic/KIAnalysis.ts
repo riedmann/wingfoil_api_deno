@@ -3,6 +3,7 @@ import {
   TrackPoint,
   TrackStatistics,
 } from "../util/types.ts";
+import { formatDateTime } from "../util/utils.ts";
 import { Analysis } from "./Analysis.ts";
 
 export interface KIAnalysisConfig {
@@ -66,6 +67,8 @@ export class KIAnalysis implements Analysis {
     return {
       totalDistance,
       totalTime: totalTimeSeconds,
+      startTime: points[0].time,
+      endTime: points[points.length - 1].time,
       avgSpeed,
       maxSpeed,
       timeAbove10kmh: timeAbove10kmh / 1000, // Convert to seconds
@@ -89,7 +92,10 @@ export class KIAnalysis implements Analysis {
 
     return {
       general: {
+        date: new Date(rawStats.startTime),
         totalTime: this.formatDuration(rawStats.totalTime),
+        startTime: formatDateTime(rawStats.startTime),
+        endTime: formatDateTime(rawStats.endTime),
       },
       speed: {
         avg: `${(rawStats.avgSpeed * 3.6).toFixed(1)} km/h`,
