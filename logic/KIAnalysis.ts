@@ -3,7 +3,6 @@ import {
   TrackPoint,
   TrackStatistics,
 } from "../util/types.ts";
-import { formatDateTime } from "../util/utils.ts";
 import { Analysis } from "./Analysis.ts";
 
 export interface KIAnalysisConfig {
@@ -67,8 +66,8 @@ export class KIAnalysis implements Analysis {
     return {
       totalDistance,
       totalTime: totalTimeSeconds,
-      startTime: points[0].time,
-      endTime: points[points.length - 1].time,
+      startTime: new Date(points[0].time).getTime(),
+      endTime: new Date(points[points.length - 1].time).getTime(),
       avgSpeed,
       maxSpeed,
       timeAbove10kmh: timeAbove10kmh / 1000, // Convert to seconds
@@ -94,19 +93,17 @@ export class KIAnalysis implements Analysis {
     return {
       general: {
         date: new Date(rawStats.startTime),
-        totalTime: this.formatDuration(rawStats.totalTime),
-        startTime: formatDateTime(rawStats.startTime),
-        endTime: formatDateTime(rawStats.endTime),
+        totalTime: rawStats.totalTime,
+        startTime: rawStats.startTime,
+        endTime: rawStats.endTime,
       },
       speed: {
         avg: parseFloat((rawStats.avgSpeed * 3.6).toFixed(1)),
         max: parseFloat((rawStats.maxSpeed * 3.6).toFixed(1)),
       },
       flying: {
-        time: this.formatDuration(rawStats.timeAbove10kmh),
-        longestSequence: this.formatDuration(
-          rawStats.longestSequenceAbove10kmh
-        ),
+        time: rawStats.timeAbove10kmh,
+        longestSequence: rawStats.longestSequenceAbove10kmh,
         percentage: flyingPercentage,
       },
       maneuvers: {

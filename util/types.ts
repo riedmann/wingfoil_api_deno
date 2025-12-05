@@ -46,14 +46,14 @@ export type Session = {
   metadata: SessionMetadata;
   points: TrackPoint[];
   statistics?: TrackStatistics;
-  config: any;
+  config: Record<string, unknown>;
 };
 
 export interface RawTrackStatistics {
   totalDistance: number; // in meters
   totalTime: number; // in seconds
-  startTime: string; // ISO string
-  endTime: string; // ISO string
+  startTime: number; // ISO string
+  endTime: number; // ISO string
   avgSpeed: number; // in m/s
   maxSpeed: number; // in m/s
   timeAbove10kmh: number; // in seconds
@@ -67,17 +67,17 @@ export interface RawTrackStatistics {
 export interface TrackStatistics {
   general: {
     date: Date;
-    totalTime: string;
-    startTime: string;
-    endTime: string;
+    totalTime: number; // in ms
+    startTime: number; // in ms
+    endTime: number; // in ms
   };
   speed: {
     avg: number; // e.g. "9.8 km/h"
     max: number; // e.g. "24.2 km/h"
   };
   flying: {
-    time: string; // e.g. "1:18:10"
-    longestSequence: string; // e.g. "4:04"
+    time: number; // ms
+    longestSequence: number; // ms
     percentage: number; // e.g. "59.6%"
   };
   maneuvers: {
