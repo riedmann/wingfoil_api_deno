@@ -55,25 +55,27 @@ export class AnalysisBase implements Analysis {
         endTime: this.formatDateTime(rawStats.endTime),
       },
       speed: {
-        avg: `${(rawStats.avgSpeed * 3.6).toFixed(1)} km/h`,
-        max: `${(rawStats.maxSpeed * 3.6).toFixed(1)} km/h`,
+        avg: parseFloat((rawStats.avgSpeed * 3.6).toFixed(1)),
+        max: parseFloat((rawStats.maxSpeed * 3.6).toFixed(1)),
       },
       flying: {
         time: this.formatDuration(rawStats.timeAbove10kmh),
         longestSequence: this.formatDuration(
           rawStats.longestSequenceAbove10kmh
         ),
-        percentage: `${flyingPercentage}%`,
+        percentage: parseFloat(flyingPercentage),
       },
       maneuvers: {
         jibes: rawStats.jibeCount,
         tacks: rawStats.tackCount,
         flyingJibes: rawStats.flyingJibeCount,
-        flyingJibePercentage: `${flyingJibePercentage}%`,
+        flyingJibePercentage: parseFloat(flyingJibePercentage),
       },
       distance: {
-        total: `${(rawStats.totalDistance / 1000).toFixed(2)} km`,
-        maxFromStart: `${(rawStats.maxDistanceFromStart / 1000).toFixed(2)} km`,
+        total: parseFloat((rawStats.totalDistance / 1000).toFixed(2)),
+        maxFromStart: parseFloat(
+          (rawStats.maxDistanceFromStart / 1000).toFixed(2)
+        ),
       },
     };
   }
@@ -372,7 +374,7 @@ function filterBySpeedJump(points: TrackPoint[], jumpMps = DEFAULT_JUMP_MPS) {
 }
 
 /** Time-weighted average speed using the filtered GPX speeds. Returns m/s. */
-function averageSpeedWeightedFromGpx(
+function _averageSpeedWeightedFromGpx(
   points: TrackPoint[],
   jumpMps = DEFAULT_JUMP_MPS
 ): number {
@@ -491,9 +493,9 @@ export const setCorrectSpeed = (points: TrackPoint[]) => {
 
 export const getLocationData = async (lon: number, lat: number) => {
   try {
-    const proxy = `https://corsproxy.io/?`;
+    const _proxy = `https://corsproxy.io/?`;
 
-    let location = await fetch(
+    const location = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`,
       {
         headers: {
@@ -503,7 +505,7 @@ export const getLocationData = async (lon: number, lat: number) => {
       }
     );
 
-    let locationData = await location.json();
+    const locationData = await location.json();
     return locationData;
   } catch (error) {
     console.error("Error fetching location data:", error);

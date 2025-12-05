@@ -24,7 +24,7 @@ export class Parser {
         speed: raw.extensions["gpxdata:speed"] ?? null, // Use null if no speed data
       };
     });
-    
+
     // Calculate speed from GPS coordinates if not available
     return this.calculateMissingSpeed(convertedPoints);
   }
@@ -82,9 +82,9 @@ export class Parser {
     const dLat = lat2 - lat1;
     const dLon = lon2 - lon1;
 
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1) * Math.cos(lat2) * 
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     return R * c;
@@ -105,6 +105,11 @@ export class Parser {
       hamlet: loc.address.hamlet,
       road: loc.address.road,
       country: loc.address.country,
+      leisure: loc.address.leisure,
+      village: loc.address.village,
+      county: loc.address.county,
+      state: loc.address.state,
+      country_code: loc.address.country_code,
     };
 
     return metadata;

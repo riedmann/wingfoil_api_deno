@@ -81,14 +81,15 @@ export class KIAnalysis implements Analysis {
   }
 
   private formatStatistics(rawStats: RawTrackStatistics): TrackStatistics {
-    const flyingPercentage = (
-      (rawStats.timeAbove10kmh / rawStats.totalTime) *
-      100
-    ).toFixed(1);
+    const flyingPercentage = parseFloat(
+      ((rawStats.timeAbove10kmh / rawStats.totalTime) * 100).toFixed(1)
+    );
     const flyingJibePercentage =
       rawStats.jibeCount > 0
-        ? ((rawStats.flyingJibeCount / rawStats.jibeCount) * 100).toFixed(1)
-        : "0";
+        ? parseFloat(
+            ((rawStats.flyingJibeCount / rawStats.jibeCount) * 100).toFixed(1)
+          )
+        : 0;
 
     return {
       general: {
@@ -98,25 +99,27 @@ export class KIAnalysis implements Analysis {
         endTime: formatDateTime(rawStats.endTime),
       },
       speed: {
-        avg: `${(rawStats.avgSpeed * 3.6).toFixed(1)} km/h`,
-        max: `${(rawStats.maxSpeed * 3.6).toFixed(1)} km/h`,
+        avg: parseFloat((rawStats.avgSpeed * 3.6).toFixed(1)),
+        max: parseFloat((rawStats.maxSpeed * 3.6).toFixed(1)),
       },
       flying: {
         time: this.formatDuration(rawStats.timeAbove10kmh),
         longestSequence: this.formatDuration(
           rawStats.longestSequenceAbove10kmh
         ),
-        percentage: `${flyingPercentage}%`,
+        percentage: flyingPercentage,
       },
       maneuvers: {
         jibes: rawStats.jibeCount,
         tacks: rawStats.tackCount,
         flyingJibes: rawStats.flyingJibeCount,
-        flyingJibePercentage: `${flyingJibePercentage}%`,
+        flyingJibePercentage: flyingJibePercentage,
       },
       distance: {
-        total: `${(rawStats.totalDistance / 1000).toFixed(2)} km`,
-        maxFromStart: `${(rawStats.maxDistanceFromStart / 1000).toFixed(2)} km`,
+        total: parseFloat((rawStats.totalDistance / 1000).toFixed(2)),
+        maxFromStart: parseFloat(
+          (rawStats.maxDistanceFromStart / 1000).toFixed(2)
+        ),
       },
     };
   }

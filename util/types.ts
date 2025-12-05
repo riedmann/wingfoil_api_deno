@@ -34,6 +34,11 @@ export type SessionMetadata = {
   hamlet?: string;
   road?: string;
   country?: string;
+  leisure?: string;
+  village?: string;
+  county?: string;
+  state?: string;
+  country_code?: string;
 };
 
 export type Session = {
@@ -67,22 +72,22 @@ export interface TrackStatistics {
     endTime: string;
   };
   speed: {
-    avg: string; // e.g. "9.8 km/h"
-    max: string; // e.g. "24.2 km/h"
+    avg: number; // e.g. "9.8 km/h"
+    max: number; // e.g. "24.2 km/h"
   };
   flying: {
     time: string; // e.g. "1:18:10"
     longestSequence: string; // e.g. "4:04"
-    percentage: string; // e.g. "59.6%"
+    percentage: number; // e.g. "59.6%"
   };
   maneuvers: {
     jibes: number;
     tacks: number;
     flyingJibes: number;
-    flyingJibePercentage: string; // e.g. "0.0%"
+    flyingJibePercentage: number; // e.g. "0.0%"
   };
   distance: {
-    total: string; // e.g. "20.54 km"
-    maxFromStart: string; // e.g. "0.39 km"
+    total: number; // e.g. "20.54 km"
+    maxFromStart: number; // e.g. "0.39 km"
   };
 }
