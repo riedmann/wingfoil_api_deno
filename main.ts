@@ -44,8 +44,6 @@ app.post("/analyze", async (c) => {
   const metadata: SessionMetadata = await Parser.getMetadata(json);
   const statistics: TrackStatistics = algo.getStatistics(points);
 
-  console.log("metadata", metadata);
-
   const session: Session = {
     metadata,
     statistics,

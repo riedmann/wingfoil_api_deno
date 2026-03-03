@@ -1,5 +1,20 @@
 export type SegmentType = "straight" | "tack" | "jibe" | "slow" | "flightjibe";
 
+export type JibeType = "flying" | "regular" | "crash";
+
+export type JibeInfo = {
+  type: JibeType;
+  startIndex: number;
+  endIndex: number;
+  startTime: string;
+  endTime: string;
+  durationSeconds: number;
+  angleChange: number;
+  minSpeed: number; // in km/h
+  maxSpeed: number; // in km/h
+  avgSpeed: number; // in km/h
+};
+
 export type Segment = {
   type: SegmentType;
   points: TrackPoint[];
@@ -62,6 +77,7 @@ export interface RawTrackStatistics {
   jibeCount: number;
   tackCount: number;
   flyingJibeCount: number;
+  jibes: JibeInfo[];
 }
 
 export interface TrackStatistics {
@@ -85,6 +101,7 @@ export interface TrackStatistics {
     tacks: number;
     flyingJibes: number;
     flyingJibePercentage: number; // e.g. "0.0%"
+    jibesList: JibeInfo[];
   };
   distance: {
     total: number; // e.g. "20.54 km"

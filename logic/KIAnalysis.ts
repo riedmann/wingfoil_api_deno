@@ -1,4 +1,6 @@
 import {
+  JibeInfo,
+  JibeType,
   RawTrackStatistics,
   TrackPoint,
   TrackStatistics,
@@ -39,6 +41,8 @@ export class KIAnalysis implements Analysis {
   }
 
   getStatistics(points: TrackPoint[]): TrackStatistics {
+    console.log("Analyzing data...");
+
     const rawStats = this.getKIAnalysisData(points);
     return this.formatStatistics(rawStats);
   }
@@ -64,8 +68,6 @@ export class KIAnalysis implements Analysis {
     // Detect maneuvers
     const maneuvers = this.detectManeuvers(points);
 
-    console.log("----- yeah -----", maxSpeed);
-
     return {
       totalDistance,
       totalTime: totalTimeSeconds,
@@ -79,6 +81,7 @@ export class KIAnalysis implements Analysis {
       jibeCount: maneuvers.jibes,
       tackCount: maneuvers.tacks,
       flyingJibeCount: maneuvers.flyingJibes,
+      jibes: maneuvers.jibesList,
     };
   }
 
@@ -114,6 +117,7 @@ export class KIAnalysis implements Analysis {
         tacks: rawStats.tackCount,
         flyingJibes: rawStats.flyingJibeCount,
         flyingJibePercentage: flyingJibePercentage,
+        jibesList: rawStats.jibes,
       },
       distance: {
         total: parseFloat((rawStats.totalDistance / 1000).toFixed(2)),
@@ -343,11 +347,13 @@ export class KIAnalysis implements Analysis {
     jibes: number;
     tacks: number;
     flyingJibes: number;
+    jibesList: JibeInfo[];
   } {
     const bearings = this.calculateBearings(points);
     let jibes = 0;
     let tacks = 0;
     let flyingJibes = 0;
+    const jibesList: JibeInfo[] = [];
 
     for (let i = 1; i < points.length - 1; i++) {
       const maneuver = this.detectManeuverAtPoint(points, bearings, i);
@@ -358,6 +364,16 @@ export class KIAnalysis implements Analysis {
           if (maneuver.isFlying) {
             flyingJibes++;
           }
+
+          // Create detailed jibe info
+          const jibeInfo = this.createJibeInfo(
+            points,
+            i,
+            maneuver.endIndex,
+            maneuver.angleChange,
+          );
+          jibesList.push(jibeInfo);
+
           i = maneuver.endIndex; // Skip ahead to avoid double counting
         } else if (maneuver.type === "tack") {
           tacks++;
@@ -366,14 +382,19 @@ export class KIAnalysis implements Analysis {
       }
     }
 
-    return { jibes, tacks, flyingJibes };
+    return { jibes, tacks, flyingJibes, jibesList };
   }
 
   private detectManeuverAtPoint(
     points: TrackPoint[],
     bearings: number[],
     startIndex: number,
-  ): { type: "jibe" | "tack"; endIndex: number; isFlying: boolean } | null {
+  ): {
+    type: "jibe" | "tack";
+    endIndex: number;
+    isFlying: boolean;
+    angleChange: number;
+  } | null {
     let maxAngleChange = 0;
     let maneuverEndIndex = -1;
 
@@ -399,15 +420,35 @@ export class KIAnalysis implements Analysis {
 
     // Classify the maneuver based on angle change
     if (maxAngleChange >= this.config.jibeAngleThreshold) {
+      // Check duration - jibes must take at least 4 seconds
+      const duration =
+        (new Date(points[maneuverEndIndex].time).getTime() -
+          new Date(points[startIndex].time).getTime()) /
+        1000;
+
+      if (duration < 4) {
+        return null; // Too short to be a valid jibe
+      }
+
       // Check if it's a flying jibe (speed never drops below threshold)
       const isFlying = this.isManeuverFlying(
         points,
         startIndex,
         maneuverEndIndex,
       );
-      return { type: "jibe", endIndex: maneuverEndIndex, isFlying };
+      return {
+        type: "jibe",
+        endIndex: maneuverEndIndex,
+        isFlying,
+        angleChange: maxAngleChange,
+      };
     } else if (maxAngleChange >= this.config.tackAngleThreshold) {
-      return { type: "tack", endIndex: maneuverEndIndex, isFlying: false };
+      return {
+        type: "tack",
+        endIndex: maneuverEndIndex,
+        isFlying: false,
+        angleChange: maxAngleChange,
+      };
     }
 
     return null;
@@ -430,6 +471,64 @@ export class KIAnalysis implements Analysis {
     }
 
     return true;
+  }
+
+  /**
+   * Create detailed jibe information including classification
+   */
+  private createJibeInfo(
+    points: TrackPoint[],
+    startIndex: number,
+    endIndex: number,
+    angleChange: number,
+  ): JibeInfo {
+    const flyingThreshold = 10 / 3.6; // 10 km/h in m/s
+    let minSpeed = Infinity;
+    let maxSpeed = 0;
+    let totalSpeed = 0;
+    let hasZeroSpeed = false;
+
+    // Analyze speeds during the jibe
+    for (let i = startIndex; i <= endIndex; i++) {
+      const speed = points[i].speed || 0;
+      minSpeed = Math.min(minSpeed, speed);
+      maxSpeed = Math.max(maxSpeed, speed);
+      totalSpeed += speed;
+
+      if (speed === 0 || speed < 0.1) {
+        hasZeroSpeed = true;
+      }
+    }
+
+    const avgSpeed = totalSpeed / (endIndex - startIndex + 1);
+
+    // Classify jibe type based on minimum speed
+    let jibeType: JibeType;
+    if (hasZeroSpeed) {
+      jibeType = "crash";
+    } else if (minSpeed >= flyingThreshold) {
+      jibeType = "flying";
+    } else {
+      jibeType = "regular";
+    }
+
+    const startTime = points[startIndex].time;
+    const endTime = points[endIndex].time;
+    const durationSeconds =
+      (new Date(endTime).getTime() - new Date(startTime).getTime()) / 1000;
+
+    return {
+      type: jibeType,
+      startIndex,
+      endIndex,
+      startTime,
+      endTime,
+      durationSeconds,
+      angleChange: parseFloat(angleChange.toFixed(1)),
+      minSpeed: parseFloat((minSpeed * 3.6).toFixed(1)), // Convert to km/h
+      maxSpeed: parseFloat((maxSpeed * 3.6).toFixed(1)), // Convert to km/h
+      avgSpeed: parseFloat((avgSpeed * 3.6).toFixed(1)), // Convert to km/h
+    };
   }
 
   private calculateBearings(points: TrackPoint[]): number[] {
