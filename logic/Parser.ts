@@ -96,26 +96,22 @@ export class Parser {
       rawJson.gpx.trk.trkseg.trkpt[0],
     );
 
-    const metadata: any = {
+    const metadata: SessionMetadata = {
       name: rawJson.gpx.trk.name,
       type: rawJson.gpx.trk.type,
       time: rawJson.gpx.metadata.time,
+      city: loc.address.city || "n.a.",
+      district: loc.address.city_district || "n.a.",
+      hamlet: loc.address.hamlet || "n.a.",
+      road: loc.address.road || "n.a.",
+      country: loc.address.country || "n.a.",
+      leisure: loc.address.leisure || "n.a.",
+      village: loc.address.village || "n.a.",
+      county: loc.address.county || "n.a.",
+      state: loc.address.state || "n.a.",
+      country_code: loc.address.country_code || "n.a.",
     };
 
-    // Only add optional fields if they have values
-    if (loc.address.city) metadata.city = loc.address.city;
-    if (loc.address.city_district)
-      metadata.district = loc.address.city_district;
-    if (loc.address.hamlet) metadata.hamlet = loc.address.hamlet;
-    if (loc.address.road) metadata.road = loc.address.road;
-    if (loc.address.country) metadata.country = loc.address.country;
-    if (loc.address.leisure) metadata.leisure = loc.address.leisure;
-    if (loc.address.village) metadata.village = loc.address.village;
-    if (loc.address.county) metadata.county = loc.address.county;
-    if (loc.address.state) metadata.state = loc.address.state;
-    if (loc.address.country_code)
-      metadata.country_code = loc.address.country_code;
-
-    return metadata as SessionMetadata;
+    return metadata;
   }
 }
