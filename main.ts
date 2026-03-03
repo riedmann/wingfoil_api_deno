@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 
 import { Analysis } from "./logic/Analysis.ts";
 import { KIAnalysis } from "./logic/KIAnalysis.ts";
@@ -13,6 +14,9 @@ import {
 } from "./util/types.ts";
 
 const app = new Hono();
+
+// Enable CORS for all routes
+app.use("/*", cors());
 
 // Basic analyzer configuration
 const analyzer: Analysis = new AnalysisBase();
