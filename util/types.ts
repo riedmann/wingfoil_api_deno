@@ -102,6 +102,7 @@ export interface TrackStatistics {
     flyingJibes: number;
     flyingJibePercentage: number; // e.g. "0.0%"
     jibesList: JibeInfo[];
+    tacksList: any[]; // Placeholder for future tack tracking
   };
   distance: {
     total: number; // e.g. "20.54 km"

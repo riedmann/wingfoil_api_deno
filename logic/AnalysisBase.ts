@@ -68,11 +68,13 @@ export class AnalysisBase implements Analysis {
         tacks: rawStats.tackCount,
         flyingJibes: rawStats.flyingJibeCount,
         flyingJibePercentage: parseFloat(flyingJibePercentage),
+        jibesList: [], // AnalysisBase doesn't track detailed jibes
+        tacksList: [], // AnalysisBase doesn't track detailed tacks
       },
       distance: {
         total: parseFloat((rawStats.totalDistance / 1000).toFixed(2)),
         maxFromStart: parseFloat(
-          (rawStats.maxDistanceFromStart / 1000).toFixed(2)
+          (rawStats.maxDistanceFromStart / 1000).toFixed(2),
         ),
       },
     };
@@ -108,7 +110,7 @@ export class AnalysisBase implements Analysis {
 
 const getAnalysisData = (
   points: TrackPoint[],
-  config: AnalysisConfig
+  config: AnalysisConfig,
 ): RawTrackStatistics => {
   if (!points || points.length < 2) {
     throw Error();
@@ -188,7 +190,7 @@ const getAnalysisData = (
       // If we're at the last point and in a sequence, calculate the sequence time
       if (i === points.length - 1 && sequenceStartIndex !== -1) {
         const sequenceStart = new Date(
-          points[sequenceStartIndex].time
+          points[sequenceStartIndex].time,
         ).getTime();
         const sequenceEnd = new Date(points[i].time).getTime();
         currentSequenceTime = (sequenceEnd - sequenceStart) / 1000;
@@ -374,7 +376,7 @@ function filterBySpeedJump(points: TrackPoint[], jumpMps = DEFAULT_JUMP_MPS) {
 /** Time-weighted average speed using the filtered GPX speeds. Returns m/s. */
 function _averageSpeedWeightedFromGpx(
   points: TrackPoint[],
-  jumpMps = DEFAULT_JUMP_MPS
+  jumpMps = DEFAULT_JUMP_MPS,
 ): number {
   const pts = filterBySpeedJump(points, jumpMps);
   if (pts.length < 2) return 0;
@@ -500,7 +502,7 @@ export const getLocationData = async (lon: number, lat: number) => {
           "User-Agent": "MyApp/1.0 (your@email.com)", // REQUIRED!
           Accept: "application/json",
         },
-      }
+      },
     );
 
     const locationData = await location.json();

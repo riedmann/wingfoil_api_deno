@@ -117,7 +117,8 @@ export class KIAnalysis implements Analysis {
         tacks: rawStats.tackCount,
         flyingJibes: rawStats.flyingJibeCount,
         flyingJibePercentage: flyingJibePercentage,
-        jibesList: rawStats.jibes,
+        jibesList: rawStats.jibes || [],
+        tacksList: [], // Tack tracking not yet implemented
       },
       distance: {
         total: parseFloat((rawStats.totalDistance / 1000).toFixed(2)),
@@ -482,6 +483,11 @@ export class KIAnalysis implements Analysis {
     endIndex: number,
     angleChange: number,
   ): JibeInfo {
+    // Validate indices
+    if (startIndex < 0 || endIndex >= points.length || startIndex >= endIndex) {
+      throw new Error(`Invalid jibe indices: ${startIndex} to ${endIndex}`);
+    }
+
     const flyingThreshold = 10 / 3.6; // 10 km/h in m/s
     let minSpeed = Infinity;
     let maxSpeed = 0;
@@ -500,6 +506,11 @@ export class KIAnalysis implements Analysis {
       }
     }
 
+    // Handle case where no valid speeds found
+    if (minSpeed === Infinity) {
+      minSpeed = 0;
+    }
+
     const avgSpeed = totalSpeed / (endIndex - startIndex + 1);
 
     // Classify jibe type based on minimum speed
@@ -512,10 +523,12 @@ export class KIAnalysis implements Analysis {
       jibeType = "regular";
     }
 
-    const startTime = points[startIndex].time;
-    const endTime = points[endIndex].time;
+    const startTime = points[startIndex]?.time || "";
+    const endTime = points[endIndex]?.time || "";
     const durationSeconds =
-      (new Date(endTime).getTime() - new Date(startTime).getTime()) / 1000;
+      startTime && endTime
+        ? (new Date(endTime).getTime() - new Date(startTime).getTime()) / 1000
+        : 0;
 
     return {
       type: jibeType,
@@ -523,7 +536,7 @@ export class KIAnalysis implements Analysis {
       endIndex,
       startTime,
       endTime,
-      durationSeconds,
+      durationSeconds: parseFloat(durationSeconds.toFixed(1)),
       angleChange: parseFloat(angleChange.toFixed(1)),
       minSpeed: parseFloat((minSpeed * 3.6).toFixed(1)), // Convert to km/h
       maxSpeed: parseFloat((maxSpeed * 3.6).toFixed(1)), // Convert to km/h
