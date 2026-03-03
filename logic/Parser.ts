@@ -93,25 +93,29 @@ export class Parser {
   static async getMetadata(rawJson: any): Promise<SessionMetadata> {
     const location: Location = new LocationOpenStreetmap();
     const loc: any = await location.getLocation(
-      rawJson.gpx.trk.trkseg.trkpt[0]
+      rawJson.gpx.trk.trkseg.trkpt[0],
     );
 
-    const metadata: SessionMetadata = {
+    const metadata: any = {
       name: rawJson.gpx.trk.name,
       type: rawJson.gpx.trk.type,
       time: rawJson.gpx.metadata.time,
-      city: loc.address.city,
-      district: loc.address.city_district,
-      hamlet: loc.address.hamlet,
-      road: loc.address.road,
-      country: loc.address.country,
-      leisure: loc.address.leisure,
-      village: loc.address.village,
-      county: loc.address.county,
-      state: loc.address.state,
-      country_code: loc.address.country_code,
     };
 
-    return metadata;
+    // Only add optional fields if they have values
+    if (loc.address.city) metadata.city = loc.address.city;
+    if (loc.address.city_district)
+      metadata.district = loc.address.city_district;
+    if (loc.address.hamlet) metadata.hamlet = loc.address.hamlet;
+    if (loc.address.road) metadata.road = loc.address.road;
+    if (loc.address.country) metadata.country = loc.address.country;
+    if (loc.address.leisure) metadata.leisure = loc.address.leisure;
+    if (loc.address.village) metadata.village = loc.address.village;
+    if (loc.address.county) metadata.county = loc.address.county;
+    if (loc.address.state) metadata.state = loc.address.state;
+    if (loc.address.country_code)
+      metadata.country_code = loc.address.country_code;
+
+    return metadata as SessionMetadata;
   }
 }
