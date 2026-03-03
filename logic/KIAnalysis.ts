@@ -52,6 +52,7 @@ export class KIAnalysis implements Analysis {
     const totalDistance = this.calculateTotalDistance(points);
     const totalTimeSeconds = this.calculateTotalTime(points);
     const maxSpeed = this.getMaxSpeed(points);
+
     const avgSpeed = this.calculateAverageSpeed(points);
 
     // Calculate wingfoil-specific metrics
@@ -62,6 +63,8 @@ export class KIAnalysis implements Analysis {
 
     // Detect maneuvers
     const maneuvers = this.detectManeuvers(points);
+
+    console.log("----- yeah -----", maxSpeed);
 
     return {
       totalDistance,
@@ -81,12 +84,12 @@ export class KIAnalysis implements Analysis {
 
   private formatStatistics(rawStats: RawTrackStatistics): TrackStatistics {
     const flyingPercentage = parseFloat(
-      ((rawStats.timeAbove10kmh / rawStats.totalTime) * 100).toFixed(1)
+      ((rawStats.timeAbove10kmh / rawStats.totalTime) * 100).toFixed(1),
     );
     const flyingJibePercentage =
       rawStats.jibeCount > 0
         ? parseFloat(
-            ((rawStats.flyingJibeCount / rawStats.jibeCount) * 100).toFixed(1)
+            ((rawStats.flyingJibeCount / rawStats.jibeCount) * 100).toFixed(1),
           )
         : 0;
 
@@ -115,7 +118,7 @@ export class KIAnalysis implements Analysis {
       distance: {
         total: parseFloat((rawStats.totalDistance / 1000).toFixed(2)),
         maxFromStart: parseFloat(
-          (rawStats.maxDistanceFromStart / 1000).toFixed(2)
+          (rawStats.maxDistanceFromStart / 1000).toFixed(2),
         ),
       },
     };
@@ -173,7 +176,7 @@ export class KIAnalysis implements Analysis {
       const sustainedDuration = this.calculateSustainedSpeedDuration(
         points,
         i,
-        currentSpeed
+        currentSpeed,
       );
 
       // Only consider this speed if it's sustained for the minimum duration
@@ -194,7 +197,7 @@ export class KIAnalysis implements Analysis {
   private calculateSustainedSpeedDuration(
     points: TrackPoint[],
     startIndex: number,
-    targetSpeed: number
+    targetSpeed: number,
   ): number {
     if (startIndex >= points.length - 1) return 0;
 
@@ -369,7 +372,7 @@ export class KIAnalysis implements Analysis {
   private detectManeuverAtPoint(
     points: TrackPoint[],
     bearings: number[],
-    startIndex: number
+    startIndex: number,
   ): { type: "jibe" | "tack"; endIndex: number; isFlying: boolean } | null {
     let maxAngleChange = 0;
     let maneuverEndIndex = -1;
@@ -385,7 +388,7 @@ export class KIAnalysis implements Analysis {
 
       const angleChange = this.angleDifference(
         bearings[startIndex - 1],
-        bearings[j - 1]
+        bearings[j - 1],
       );
 
       if (angleChange > maxAngleChange) {
@@ -400,7 +403,7 @@ export class KIAnalysis implements Analysis {
       const isFlying = this.isManeuverFlying(
         points,
         startIndex,
-        maneuverEndIndex
+        maneuverEndIndex,
       );
       return { type: "jibe", endIndex: maneuverEndIndex, isFlying };
     } else if (maxAngleChange >= this.config.tackAngleThreshold) {
@@ -416,7 +419,7 @@ export class KIAnalysis implements Analysis {
   private isManeuverFlying(
     points: TrackPoint[],
     startIndex: number,
-    endIndex: number
+    endIndex: number,
   ): boolean {
     const thresholdMs = this.config.flyingJibeSpeedThresholdKmh / 3.6;
 
@@ -487,13 +490,77 @@ export class KIAnalysis implements Analysis {
   }
 
   /**
-   * Filter out speed outliers that are unrealistically high
+   * Filter out speed outliers using multiple strategies:
+   * 1. Hard cap at maximum realistic speed (50 km/h)
+   * 2. Detect isolated spikes that don't match neighboring points
+   * 3. Check for physically impossible accelerations
    */
   private filterSpeedOutliers(
     points: TrackPoint[],
-    maxSpeedMs: number = 50
+    maxSpeedKmh: number = 50,
   ): TrackPoint[] {
-    return points.filter((p) => (p.speed || 0) <= maxSpeedMs);
+    if (points.length < 3) return points;
+
+    const maxSpeedMs = maxSpeedKmh / 3.6; // Convert km/h to m/s
+    const maxAcceleration = 5.0; // Max realistic acceleration in m/s² for wingfoiling
+
+    const filteredPoints: TrackPoint[] = [];
+
+    for (let i = 0; i < points.length; i++) {
+      const point = points[i];
+      const speed = point.speed || 0;
+
+      // Apply hard cap
+      if (speed > maxSpeedMs) {
+        continue; // Skip this point
+      }
+
+      // For first and last points, only apply hard cap
+      if (i === 0 || i === points.length - 1) {
+        filteredPoints.push(point);
+        continue;
+      }
+
+      // Check acceleration feasibility with previous and next points
+      const prevPoint = points[i - 1];
+      const nextPoint = points[i + 1];
+      const prevSpeed = prevPoint.speed || 0;
+      const nextSpeed = nextPoint.speed || 0;
+
+      const timeDiffPrev =
+        (new Date(point.time).getTime() - new Date(prevPoint.time).getTime()) /
+        1000;
+      const timeDiffNext =
+        (new Date(nextPoint.time).getTime() - new Date(point.time).getTime()) /
+        1000;
+
+      // Skip if time intervals are invalid
+      if (timeDiffPrev <= 0 || timeDiffNext <= 0) {
+        filteredPoints.push(point);
+        continue;
+      }
+
+      // Calculate accelerations
+      const accelFromPrev = Math.abs(speed - prevSpeed) / timeDiffPrev;
+      const accelToNext = Math.abs(nextSpeed - speed) / timeDiffNext;
+
+      // Check if this is an isolated spike
+      const avgNeighborSpeed = (prevSpeed + nextSpeed) / 2;
+      const speedDiff = Math.abs(speed - avgNeighborSpeed);
+      const isIsolatedSpike = speedDiff > 5.0; // 18 km/h difference from neighbors
+
+      // Filter out if acceleration is too high AND it's an isolated spike
+      if (
+        (accelFromPrev > maxAcceleration || accelToNext > maxAcceleration) &&
+        isIsolatedSpike
+      ) {
+        continue; // Skip this outlier
+      }
+
+      filteredPoints.push(point);
+    }
+
+    return filteredPoints;
   }
 
   /**
