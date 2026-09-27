@@ -4,6 +4,7 @@ export interface Analysis {
   getStatistics(
     points: TrackPoint[],
     recordedTotalDistanceMeters?: number,
+    smoothedGpsMaxSpeedMps?: number,
   ): TrackStatistics;
   getConfig(): any;
 }

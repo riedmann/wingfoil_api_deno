@@ -43,7 +43,12 @@ app.post("/analyze", async (c) => {
   const points: TrackPoint[] = Parser.getPointsFromRawJson(json);
   const metadata: SessionMetadata = await Parser.getMetadata(json);
   const totalDistance = Parser.getTotalDistanceFromRawJson(json);
-  const statistics: TrackStatistics = algo.getStatistics(points, totalDistance);
+  const smoothedGpsMaxSpeed = Parser.getSmoothedGpsMaxSpeedFromRawJson(json);
+  const statistics: TrackStatistics = algo.getStatistics(
+    points,
+    totalDistance,
+    smoothedGpsMaxSpeed,
+  );
 
   const session: Session = {
     metadata,

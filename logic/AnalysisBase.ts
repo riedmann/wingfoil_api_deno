@@ -35,11 +35,13 @@ export class AnalysisBase implements Analysis {
   getStatistics(
     points: TrackPoint[],
     recordedTotalDistanceMeters?: number,
+    smoothedGpsMaxSpeedMps?: number,
   ): TrackStatistics {
     const rawStats = getAnalysisData(
       points,
       this.config,
       recordedTotalDistanceMeters,
+      smoothedGpsMaxSpeedMps,
     );
     return this.formatStatistics(rawStats);
   }
@@ -119,6 +121,7 @@ const getAnalysisData = (
   points: TrackPoint[],
   config: AnalysisConfig,
   recordedTotalDistanceMeters?: number,
+  smoothedGpsMaxSpeedMps?: number,
 ): RawTrackStatistics => {
   if (!points || points.length < 2) {
     throw Error();
@@ -145,7 +148,7 @@ const getAnalysisData = (
 
   // Calculate speeds
   //const speeds = points.map((p) => p.speed || 0);
-  const maxSpeed = getMaxSpeed(points);
+  const maxSpeed = smoothedGpsMaxSpeedMps ?? getMaxSpeed(points);
   const avgSpeed = averageSpeedWeighted(points);
 
   // Calculate time above 10 km/h

@@ -35,6 +35,89 @@ export class Parser {
     return Number.isFinite(distance) && distance > 0 ? distance : undefined;
   }
 
+  static getSmoothedGpsMaxSpeedFromRawJson(data: any): number | undefined {
+    const rawPoints = data.gpx.trk.trkseg.trkpt;
+    if (
+      rawPoints.some(
+        (point: any) => point.extensions?.["gpxdata:speed"] != null,
+      )
+    ) {
+      return undefined;
+    }
+
+    const points = rawPoints.map((point: any) => ({
+      lat: parseFloat(point.lat),
+      lon: parseFloat(point.lon),
+      time: new Date(point.time).getTime(),
+    }));
+    const halfWindowMs = 10_000;
+    const metersPerLatitudeDegree = 110_540;
+    const referenceLatitude =
+      points.reduce((sum: number, point: any) => sum + point.lat, 0) /
+      points.length;
+    const metersPerLongitudeDegree =
+      111_320 * Math.cos((referenceLatitude * Math.PI) / 180);
+    let maxSpeed = 0;
+    let windowStart = 0;
+    let windowEnd = 0;
+
+    for (const center of points) {
+      while (points[windowStart].time < center.time - halfWindowMs) {
+        windowStart++;
+      }
+      while (
+        windowEnd < points.length &&
+        points[windowEnd].time <= center.time + halfWindowMs
+      ) {
+        windowEnd++;
+      }
+      const window = points.slice(windowStart, windowEnd);
+      if (
+        window.length < 3 ||
+        window[window.length - 1].time - window[0].time < halfWindowMs * 2
+      ) {
+        continue;
+      }
+
+      const meanTime =
+        window.reduce((sum: number, point: any) => sum + point.time, 0) /
+        window.length;
+      const meanX =
+        window.reduce(
+          (sum: number, point: any) =>
+            sum + point.lon * metersPerLongitudeDegree,
+          0,
+        ) / window.length;
+      const meanY =
+        window.reduce(
+          (sum: number, point: any) =>
+            sum + point.lat * metersPerLatitudeDegree,
+          0,
+        ) / window.length;
+      let timeVariance = 0;
+      let xCovariance = 0;
+      let yCovariance = 0;
+
+      for (const point of window) {
+        const timeOffset = (point.time - meanTime) / 1000;
+        timeVariance += timeOffset ** 2;
+        xCovariance +=
+          timeOffset * (point.lon * metersPerLongitudeDegree - meanX);
+        yCovariance +=
+          timeOffset * (point.lat * metersPerLatitudeDegree - meanY);
+      }
+
+      if (timeVariance > 0) {
+        maxSpeed = Math.max(
+          maxSpeed,
+          Math.hypot(xCovariance, yCovariance) / timeVariance,
+        );
+      }
+    }
+
+    return maxSpeed > 0 ? maxSpeed : undefined;
+  }
+
   /**
    * Calculate speed from GPS coordinates for points that don't have speed data
    */

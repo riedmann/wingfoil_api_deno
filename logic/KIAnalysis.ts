@@ -43,12 +43,14 @@ export class KIAnalysis implements Analysis {
   getStatistics(
     points: TrackPoint[],
     recordedTotalDistanceMeters?: number,
+    smoothedGpsMaxSpeedMps?: number,
   ): TrackStatistics {
     console.log("Analyzing data...");
 
     const rawStats = this.getKIAnalysisData(
       points,
       recordedTotalDistanceMeters,
+      smoothedGpsMaxSpeedMps,
     );
     return this.formatStatistics(rawStats);
   }
@@ -56,6 +58,7 @@ export class KIAnalysis implements Analysis {
   private getKIAnalysisData(
     points: TrackPoint[],
     recordedTotalDistanceMeters?: number,
+    smoothedGpsMaxSpeedMps?: number,
   ): RawTrackStatistics {
     if (!points || points.length < 2) {
       throw new Error("Insufficient data points for analysis");
@@ -68,7 +71,7 @@ export class KIAnalysis implements Analysis {
         ? recordedTotalDistanceMeters
         : this.calculateTotalDistance(points);
     const totalTimeSeconds = this.calculateTotalTime(points);
-    const maxSpeed = this.getMaxSpeed(points);
+    const maxSpeed = smoothedGpsMaxSpeedMps ?? this.getMaxSpeed(points);
 
     const avgSpeed = this.calculateAverageSpeed(points);
 
