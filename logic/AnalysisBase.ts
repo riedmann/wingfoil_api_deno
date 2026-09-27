@@ -32,8 +32,15 @@ export class AnalysisBase implements Analysis {
   getConfig() {
     return this.config;
   }
-  getStatistics(points: TrackPoint[]): TrackStatistics {
-    const rawStats = getAnalysisData(points, this.config);
+  getStatistics(
+    points: TrackPoint[],
+    recordedTotalDistanceMeters?: number,
+  ): TrackStatistics {
+    const rawStats = getAnalysisData(
+      points,
+      this.config,
+      recordedTotalDistanceMeters,
+    );
     return this.formatStatistics(rawStats);
   }
 
@@ -111,16 +118,23 @@ export class AnalysisBase implements Analysis {
 const getAnalysisData = (
   points: TrackPoint[],
   config: AnalysisConfig,
+  recordedTotalDistanceMeters?: number,
 ): RawTrackStatistics => {
   if (!points || points.length < 2) {
     throw Error();
   }
 
   // Calculate total distance (sum of all point distances)
-  let totalDistance = 0;
-  for (let i = 1; i < points.length; i++) {
-    const distance = calculateDistance(points[i - 1], points[i]);
-    totalDistance += distance;
+  let totalDistance =
+    recordedTotalDistanceMeters !== undefined &&
+    Number.isFinite(recordedTotalDistanceMeters)
+      ? recordedTotalDistanceMeters
+      : 0;
+  if (totalDistance === 0) {
+    for (let i = 1; i < points.length; i++) {
+      const distance = calculateDistance(points[i - 1], points[i]);
+      totalDistance += distance;
+    }
   }
 
   // Calculate total time
@@ -295,6 +309,7 @@ const getAnalysisData = (
     jibeCount,
     tackCount,
     flyingJibeCount,
+    jibes: [],
   };
 
   return stats;

@@ -40,20 +40,33 @@ export class KIAnalysis implements Analysis {
     };
   }
 
-  getStatistics(points: TrackPoint[]): TrackStatistics {
+  getStatistics(
+    points: TrackPoint[],
+    recordedTotalDistanceMeters?: number,
+  ): TrackStatistics {
     console.log("Analyzing data...");
 
-    const rawStats = this.getKIAnalysisData(points);
+    const rawStats = this.getKIAnalysisData(
+      points,
+      recordedTotalDistanceMeters,
+    );
     return this.formatStatistics(rawStats);
   }
 
-  private getKIAnalysisData(points: TrackPoint[]): RawTrackStatistics {
+  private getKIAnalysisData(
+    points: TrackPoint[],
+    recordedTotalDistanceMeters?: number,
+  ): RawTrackStatistics {
     if (!points || points.length < 2) {
       throw new Error("Insufficient data points for analysis");
     }
 
     // Calculate basic metrics
-    const totalDistance = this.calculateTotalDistance(points);
+    const totalDistance =
+      recordedTotalDistanceMeters !== undefined &&
+      Number.isFinite(recordedTotalDistanceMeters)
+        ? recordedTotalDistanceMeters
+        : this.calculateTotalDistance(points);
     const totalTimeSeconds = this.calculateTotalTime(points);
     const maxSpeed = this.getMaxSpeed(points);
 
@@ -421,14 +434,14 @@ export class KIAnalysis implements Analysis {
 
     // Classify the maneuver based on angle change
     if (maxAngleChange >= this.config.jibeAngleThreshold) {
-      // Check duration - jibes must take at least 4 seconds
+      // Check duration - jibes must take between 4-8 seconds
       const duration =
         (new Date(points[maneuverEndIndex].time).getTime() -
           new Date(points[startIndex].time).getTime()) /
         1000;
 
-      if (duration < 4) {
-        return null; // Too short to be a valid jibe
+      if (duration < 4 || duration > 8) {
+        return null; // Duration outside valid range for a jibe
       }
 
       // Check if it's a flying jibe (speed never drops below threshold)
@@ -488,7 +501,7 @@ export class KIAnalysis implements Analysis {
       throw new Error(`Invalid jibe indices: ${startIndex} to ${endIndex}`);
     }
 
-    const flyingThreshold = 10 / 3.6; // 10 km/h in m/s
+    const flyingThreshold = this.config.flyingSpeedThresholdKmh / 3.6; // Convert km/h to m/s
     let minSpeed = Infinity;
     let maxSpeed = 0;
     let totalSpeed = 0;

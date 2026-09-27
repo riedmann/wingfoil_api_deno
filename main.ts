@@ -42,7 +42,8 @@ app.post("/analyze", async (c) => {
   const json = Parser.parseXMLtoJSON(xmlText);
   const points: TrackPoint[] = Parser.getPointsFromRawJson(json);
   const metadata: SessionMetadata = await Parser.getMetadata(json);
-  const statistics: TrackStatistics = algo.getStatistics(points);
+  const totalDistance = Parser.getTotalDistanceFromRawJson(json);
+  const statistics: TrackStatistics = algo.getStatistics(points, totalDistance);
 
   const session: Session = {
     metadata,

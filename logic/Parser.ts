@@ -15,18 +15,24 @@ export class Parser {
   static getPointsFromRawJson(data: any): TrackPoint[] {
     const points = data.gpx.trk.trkseg.trkpt;
     const convertedPoints: TrackPoint[] = points.map((raw: any) => {
+      const extensions = raw.extensions ?? {};
       return {
         lat: parseFloat(raw.lat),
         lon: parseFloat(raw.lon),
         time: raw.time,
-        hr: raw.extensions["gpxdata:hr"],
-        distance: raw.extensions["gpxdata:distance"],
-        speed: raw.extensions["gpxdata:speed"] ?? null, // Use null if no speed data
+        hr: extensions["gpxdata:hr"],
+        distance: extensions["gpxdata:distance"],
+        speed: extensions["gpxdata:speed"] ?? null,
       };
     });
 
     // Calculate speed from GPS coordinates if not available
     return this.calculateMissingSpeed(convertedPoints);
+  }
+
+  static getTotalDistanceFromRawJson(data: any): number | undefined {
+    const distance = Number(data.gpx.trk.extensions?.totalDistance);
+    return Number.isFinite(distance) && distance > 0 ? distance : undefined;
   }
 
   /**
@@ -92,24 +98,24 @@ export class Parser {
 
   static async getMetadata(rawJson: any): Promise<SessionMetadata> {
     const location: Location = new LocationOpenStreetmap();
-    const loc: any = await location.getLocation(
-      rawJson.gpx.trk.trkseg.trkpt[0],
-    );
+    const firstPoint = rawJson.gpx.trk.trkseg.trkpt[0];
+    const loc: any = await location.getLocation(firstPoint);
+    const address = loc.address ?? {};
 
     const metadata: SessionMetadata = {
-      name: rawJson.gpx.trk.name,
-      type: rawJson.gpx.trk.type,
-      time: rawJson.gpx.metadata.time,
-      city: loc.address.city || "n.a.",
-      district: loc.address.city_district || "n.a.",
-      hamlet: loc.address.hamlet || "n.a.",
-      road: loc.address.road || "n.a.",
-      country: loc.address.country || "n.a.",
-      leisure: loc.address.leisure || "n.a.",
-      village: loc.address.village || "n.a.",
-      county: loc.address.county || "n.a.",
-      state: loc.address.state || "n.a.",
-      country_code: loc.address.country_code || "n.a.",
+      name: rawJson.gpx.trk.name ?? rawJson.gpx.name ?? "n.a.",
+      type: rawJson.gpx.trk.type ?? "n.a.",
+      time: rawJson.gpx.metadata?.time ?? firstPoint.time,
+      city: address.city || "n.a.",
+      district: address.city_district || "n.a.",
+      hamlet: address.hamlet || "n.a.",
+      road: address.road || "n.a.",
+      country: address.country || "n.a.",
+      leisure: address.leisure || "n.a.",
+      village: address.village || "n.a.",
+      county: address.county || "n.a.",
+      state: address.state || "n.a.",
+      country_code: address.country_code || "n.a.",
     };
 
     return metadata;
