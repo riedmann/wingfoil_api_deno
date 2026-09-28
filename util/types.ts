@@ -44,6 +44,7 @@ export type SessionMetadata = {
   name: string;
   type: string;
   time: string;
+  algorithm?: string;
   city?: string;
   district?: string;
   hamlet?: string;

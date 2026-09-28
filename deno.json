@@ -5,8 +5,8 @@
     "hono": "npm:hono@^4.9.10"
   },
   "tasks": {
-    "start": "deno run --allow-net main.ts",
-    "dev": "deno run --allow-net --watch main.ts",
+    "start": "deno run --allow-net --allow-read=logic/analyzers main.ts",
+    "dev": "deno run --allow-net --allow-read=logic/analyzers --watch main.ts",
     "deploy": "deployctl deploy"
   },
   "compilerOptions": {

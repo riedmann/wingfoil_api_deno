@@ -1,8 +1,8 @@
 import {
-  TrackPoint,
   RawTrackStatistics,
+  TrackPoint,
   TrackStatistics,
-} from "../util/types.ts";
+} from "../../util/types.ts";
 import { Analysis } from "./Analysis.ts";
 
 export interface AnalysisConfig {
@@ -537,3 +537,5 @@ export const getLocationData = async (lon: number, lat: number) => {
     };
   }
 };
+
+export default AnalysisBase;

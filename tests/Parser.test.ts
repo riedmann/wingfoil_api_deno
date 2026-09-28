@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
-import { AnalysisBase } from "../logic/AnalysisBase.ts";
-import { KIAnalysis } from "../logic/KIAnalysis.ts";
+import { AnalysisBase } from "../logic/analyzers/AnalysisBase.ts";
+import { KIAnalysis } from "../logic/analyzers/KIAnalysis.ts";
 import { Parser } from "../logic/Parser.ts";
 
 Deno.test(

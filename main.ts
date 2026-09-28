@@ -1,11 +1,9 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
-import { Analysis } from "./logic/Analysis.ts";
-import { KIAnalysis } from "./logic/KIAnalysis.ts";
+import { loadAnalyzers } from "./logic/analyzers/registry.ts";
 import { Parser } from "./logic/Parser.ts";
 
-import { AnalysisBase } from "./logic/AnalysisBase.ts";
 import {
   Session,
   SessionMetadata,
@@ -18,9 +16,8 @@ const app = new Hono();
 // Enable CORS for all routes
 app.use("/*", cors());
 
-// Basic analyzer configuration
-const analyzer: Analysis = new AnalysisBase();
-const kiAnalyzer: Analysis = new KIAnalysis();
+const analyzers = await loadAnalyzers();
+const defaultAnalyzerName = "AnalysisBase";
 
 app.get("/", (c) => {
   return c.json({
@@ -30,18 +27,29 @@ app.get("/", (c) => {
       "/analyze": "Basic GPX analysis",
       "/analyze-wingfoil":
         "Wingfoil-specific analysis with configurable parameters",
+      algorithms: [...analyzers.keys()],
     },
   });
 });
 
 app.post("/analyze", async (c) => {
-  const algorithm = c.req.query("algorithm");
-  const algo = algorithm == "KI" ? kiAnalyzer : analyzer;
+  const requestedAlgorithm = c.req.query("algorithm") ?? defaultAnalyzerName;
+  const requestedAlgorithmName =
+    requestedAlgorithm === "KI" ? "KIAnalysis" : requestedAlgorithm;
+  const algo =
+    analyzers.get(requestedAlgorithmName) ?? analyzers.get(defaultAnalyzerName);
+  if (!algo) {
+    throw new Error(`Default analyzer ${defaultAnalyzerName} not found`);
+  }
+  const algorithmName = algo.constructor.name;
 
   const xmlText = await c.req.text();
   const json = Parser.parseXMLtoJSON(xmlText);
   const points: TrackPoint[] = Parser.getPointsFromRawJson(json);
-  const metadata: SessionMetadata = await Parser.getMetadata(json);
+  const metadata: SessionMetadata = {
+    ...(await Parser.getMetadata(json)),
+    algorithm: algorithmName,
+  };
   const totalDistance = Parser.getTotalDistanceFromRawJson(json);
   const smoothedGpsMaxSpeed = Parser.getSmoothedGpsMaxSpeedFromRawJson(json);
   const statistics: TrackStatistics = algo.getStatistics(
@@ -53,7 +61,7 @@ app.post("/analyze", async (c) => {
   const session: Session = {
     metadata,
     statistics,
-    config: { type: algo.constructor.name },
+    config: { type: algorithmName },
     points,
   };
 

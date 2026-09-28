@@ -1,4 +1,4 @@
-import { TrackPoint, TrackStatistics } from "../util/types.ts";
+import { TrackPoint, TrackStatistics } from "../../util/types.ts";
 
 export interface Analysis {
   getStatistics(
