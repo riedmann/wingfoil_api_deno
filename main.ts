@@ -18,10 +18,12 @@ app.use("/*", cors());
 
 const analyzers = await loadAnalyzers();
 const defaultAnalyzerName = "AnalysisBase";
+const API_VERSION = "1.0.1";
 
 app.get("/", (c) => {
   return c.json({
     title: "Wingfoil API",
+    version: API_VERSION,
     endpoints: {
       "/": "API info",
       "/analyze": "Basic GPX analysis",
@@ -66,6 +68,7 @@ app.post("/analyze", async (c) => {
   };
 
   return c.json({
+    version: API_VERSION,
     ...session,
   });
 });
